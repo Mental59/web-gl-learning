@@ -1,48 +1,50 @@
 const vertexShaderSource = `#version 300 es
  
 in vec4 a_position;
+
+layout(location = 0) in vec2 aPosition;
+layout(location = 1) in vec3 aColor;
+
+out vec3 vColor;
  
 void main()
 {
-  gl_Position = a_position;
+  vColor = aColor;
+  gl_Position = vec4(aPosition, 0.0, 1.0);
 }
 `;
 
 const fragmentShaderSource = `#version 300 es
 
 precision mediump float;
- 
-uniform vec4 u_color;
+
+in vec3 vColor;
 
 out vec4 outColor;
  
 void main()
 {
-  outColor = u_color;
+  outColor = vec4(vColor, 1.0);
 }
 `;
 
 const main = () => {
-  const canvas = document.querySelector("canvas#canvas1") as HTMLCanvasElement;
+  const canvas = document.querySelector('canvas#canvas1') as HTMLCanvasElement;
 
   if (!canvas) {
-    console.log("canvas not found");
+    console.log('canvas not found');
     return;
   }
 
-  const gl = canvas.getContext("webgl2");
+  const gl = canvas.getContext('webgl2');
 
   if (!gl) {
-    console.log("webgl2 is not supported");
+    console.log('webgl2 is not supported');
     return;
   }
 
-  const createShader = (type, source) => {
+  const createShader = (type: number, source: string) => {
     const shader = gl.createShader(type);
-
-    if (!shader) {
-      return null;
-    }
 
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
@@ -56,15 +58,11 @@ const main = () => {
     return shader;
   };
 
-  const createProgram = (
+  const createAndLinkProgram = (
     vertexShader: WebGLShader,
-    fragmentShader: WebGLShader
+    fragmentShader: WebGLShader,
   ) => {
     const program = gl.createProgram();
-
-    if (!program) {
-      return null;
-    }
 
     gl.attachShader(program, vertexShader);
     gl.attachShader(program, fragmentShader);
@@ -83,55 +81,27 @@ const main = () => {
   const vertexShader = createShader(gl.VERTEX_SHADER, vertexShaderSource);
   const fragmentShader = createShader(gl.FRAGMENT_SHADER, fragmentShaderSource);
 
-  if (!vertexShader || !fragmentShader) {
-    console.log("shaders were not created");
-    return;
-  }
+  const program = createAndLinkProgram(vertexShader, fragmentShader);
 
-  const program = createProgram(vertexShader, fragmentShader);
+  const aPositionLoc = 0;
+  const aColorLoc = 1;
 
-  if (!program) {
-    console.log("program was not created");
-    return;
-  }
+  const bufferData = new Float32Array([
+    0, 1, 1, 0, 0, -1, -1, 0, 1, 0, 1, -1, 0, 0, 1,
+  ]);
 
-  // get locations
-  const positionAttributeLocation = gl.getAttribLocation(program, "a_position");
-  const uColorLocation = gl.getUniformLocation(program, "u_color");
+  gl.enableVertexAttribArray(aPositionLoc);
+  gl.enableVertexAttribArray(aColorLoc);
 
-  // create and bind buffer
   const positionBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, bufferData, gl.STATIC_DRAW);
 
-  // create and bind vertex array
-  const vao = gl.createVertexArray();
-  gl.bindVertexArray(vao);
-  gl.enableVertexAttribArray(positionAttributeLocation);
-  gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0); // index, size, type, normalized, stride, offset
-
-  gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-
-  gl.clearColor(0, 0, 0, 0);
-  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.vertexAttribPointer(aPositionLoc, 2, gl.FLOAT, false, 5 * 4, 0);
+  gl.vertexAttribPointer(aColorLoc, 3, gl.FLOAT, false, 5 * 4, 2 * 4);
 
   gl.useProgram(program);
 
-  // draw first triangle
-  gl.bufferData(
-    gl.ARRAY_BUFFER,
-    new Float32Array([0, 0, 0, 0.5, 0.5, 0]),
-    gl.STATIC_DRAW
-  );
-  gl.uniform4f(uColorLocation, 0, 1, 0, 1);
-  gl.drawArrays(gl.TRIANGLES, 0, 3);
-
-  // draw second triangle
-  gl.bufferData(
-    gl.ARRAY_BUFFER,
-    new Float32Array([-0.5, 0, 0, 0, -0.25, 0.5]),
-    gl.STATIC_DRAW
-  );
-  gl.uniform4f(uColorLocation, 1, 0, 0, 1);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 };
 
